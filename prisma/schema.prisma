@@ -1,0 +1,242 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+enum LearnerStatus {
+  REGISTERED
+  APPROVED
+  ELIGIBLE
+  CREDENTIAL_ISSUED
+  COURSE_SELECTED
+  CERTIFICATE_PENDING
+  PAYMENT_PENDING
+  ACTIVE
+  LEARNING
+  TEST_COMPLETED
+  CERTIFIED
+  EXPIRED
+  RENEWAL_PENDING
+}
+
+enum CourseLevel {
+  L1
+  L2
+  L3
+  L4
+  L5
+}
+
+enum EnrollmentStatus {
+  PENDING
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum CertificateUploadStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum AssessmentType {
+  PRACTICE
+  MAIN
+}
+
+enum ResultStatus {
+  PASS
+  FAIL
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum UserRole {
+  LEARNER
+  ADMIN
+}
+
+model User {
+  id        String     @id @default(cuid())
+  name      String
+  email     String     @unique
+  phone     String
+  password  String
+  role      UserRole   @default(LEARNER)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  learner   Learner?
+}
+
+model Learner {
+  id        String        @id @default(cuid())
+  userId    String        @unique
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status    LearnerStatus @default(REGISTERED)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  enrollments        Enrollment[]
+  certificateUploads CertificateUpload[]
+  results            Result[]
+  certificates       Certificate[]
+  payments           Payment[]
+  approvals          Approval[]
+}
+
+model Course {
+  id          String      @id @default(cuid())
+  name        String
+  description String
+  level       CourseLevel
+  price       Float
+  duration    Int
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  enrollments Enrollment[]
+  assessments Assessment[]
+  studyMaterials StudyMaterial[]
+}
+
+model Enrollment {
+  id         String           @id @default(cuid())
+  learnerId  String
+  courseId   String
+  status     EnrollmentStatus @default(PENDING)
+  enrolledAt DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  learner Learner @relation(fields: [learnerId], references: [id], onDelete: Cascade)
+  course  Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([learnerId, courseId])
+}
+
+model CertificateUpload {
+  id         String                  @id @default(cuid())
+  learnerId  String
+  fileUrl    String
+  fileName   String
+  status     CertificateUploadStatus @default(PENDING)
+  adminNotes String?
+  uploadedAt DateTime                @default(now())
+  updatedAt  DateTime                @updatedAt
+
+  learner Learner @relation(fields: [learnerId], references: [id], onDelete: Cascade)
+}
+
+model StudyMaterial {
+  id          String   @id @default(cuid())
+  courseId    String
+  title       String
+  content     String
+  fileUrl     String?
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+}
+
+model Assessment {
+  id        String         @id @default(cuid())
+  courseId  String
+  type      AssessmentType
+  title     String
+  duration  Int
+  passMark  Int            @default(70)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  course    Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  questions Question[]
+  results   Result[]
+}
+
+model Question {
+  id           String     @id @default(cuid())
+  assessmentId String
+  text         String
+  optionA      String
+  optionB      String
+  optionC      String
+  optionD      String
+  correctOption String
+  order        Int        @default(0)
+  createdAt    DateTime   @default(now())
+
+  assessment Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+}
+
+model Result {
+  id           String       @id @default(cuid())
+  learnerId    String
+  assessmentId String
+  score        Float
+  totalQuestions Int
+  correctAnswers Int
+  status       ResultStatus
+  attemptAt    DateTime     @default(now())
+  answers      String       // JSON as string for SQLite compatibility
+
+  learner    Learner    @relation(fields: [learnerId], references: [id], onDelete: Cascade)
+  assessment Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+}
+
+model Certificate {
+  id             String   @id @default(cuid())
+  learnerId      String
+  courseId       String
+  certificateUrl String?
+  issuedAt       DateTime @default(now())
+  validUntil     DateTime
+  isRenewal      Boolean  @default(false)
+
+  learner Learner @relation(fields: [learnerId], references: [id], onDelete: Cascade)
+}
+
+model Payment {
+  id              String        @id @default(cuid())
+  learnerId       String
+  courseId        String
+  amount          Float
+  status          PaymentStatus @default(PENDING)
+  transactionId   String?
+  paymentMethod   String?
+  paymentAt       DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  learner Learner @relation(fields: [learnerId], references: [id], onDelete: Cascade)
+}
+
+model Approval {
+  id        String         @id @default(cuid())
+  learnerId String
+  stage     String
+  status    ApprovalStatus @default(PENDING)
+  remarks   String?
+  reviewedAt DateTime?
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  learner Learner @relation(fields: [learnerId], references: [id], onDelete: Cascade)
+}
