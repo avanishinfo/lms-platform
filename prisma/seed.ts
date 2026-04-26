@@ -13,7 +13,9 @@ async function main() {
   const adminPassword = await bcrypt.hash('admin123', 10)
   const admin = await prisma.user.upsert({
     where: { email: 'admin@arifac.com' },
-    update: {},
+    update: {
+      role: 'ADMIN',
+    },
     create: {
       name: 'ARIFAC Admin',
       email: 'admin@arifac.com',
@@ -28,7 +30,17 @@ async function main() {
   const learnerPassword = await bcrypt.hash('learner123', 10)
   const learnerUser = await prisma.user.upsert({
     where: { email: 'john.doe@example.com' },
-    update: {},
+    update: {
+      role: 'LEARNER',
+      learner: {
+        upsert: {
+          update: {},
+          create: {
+            status: 'REGISTERED',
+          },
+        },
+      },
+    },
     create: {
       name: 'John Doe',
       email: 'john.doe@example.com',
